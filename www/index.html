@@ -2,23 +2,27 @@
 <html lang="en">
   <meta charset="utf-8">
   <head>
-  <title>MJPG Streaming from Raspberry Pi</title>
-  <link href='/favicon.ico' rel='shortcut icon'>
-	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
-	<meta name="viewport" content="user-scalable=yes, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width"/>
-	<!-- css -->
-	<link rel="stylesheet" href="styles.css" type="text/css" />
-	<!-- jquery -->
-	<script src="http://code.jquery.com/jquery-2.1.0.min.js"></script>
-    <script type="text/javascript" src="jquery.rotate.1-1.js"></script>
-	<!-- bootstrap -->
-    <link href="//netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" rel="stylesheet" />
-	<script src="//netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script>
-	<!-- coffeescript -->
-	<script src="//cdnjs.cloudflare.com/ajax/libs/coffee-script/1.6.3/coffee-script.min.js"></script>
+    <title>MJPG Streaming from Raspberry Pi</title>
+    <link href='/favicon.ico' rel='shortcut icon'>
+  	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  	<meta name="viewport" content="user-scalable=yes, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width"/>
+  	<!-- css -->
+  	<link rel="stylesheet" href="styles.css" type="text/css" />
+  	<!-- jquery -->
+        <script type="text/javascript" src="jquery.rotate.1-1.js"></script>
+  	<!-- bootstrap -->
+      <link href="//netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" rel="stylesheet" />
+  	<script src="//netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script>
+  	<!-- coffeescript -->
+  	<script src="//cdnjs.cloudflare.com/ajax/libs/coffee-script/1.6.3/coffee-script.min.js"></script>
+    <!--Jquery 2.1.1 -->
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
   </head>
+
   <body>
 	  <div id="wrap">
+
+      <!-- NAVBAR -->
 		  <div class="navbar navbar-default navbar-static-top">
 			  <div class="container">
 				  <div class="navbar-header">
@@ -46,61 +50,125 @@
 				  </div>
 			  </div>
 		  </div>
+
+      <!--STREAM -->
 		  <div class="container">
         <div class="text-center">
           <img id="streaming" class="img-responsive img-thumbnail" src="/?action=stream" />
         </div>
       </div>
+
+      <!-- WEBSOCKET CONNECTION -->
+       <div id="content"></div>
+
+      <div>
+         <span id="status">Connecting...</span>
+      </div>
+
     </div>
+
   </body>
+
   <script type="text/coffeescript">
-# default values
-angle = 0
-flipped = false
-mirrored = false
+    # default values
+    angle = 0
+    flipped = false
+    mirrored = false
 
-# refresh current rotation
-refreshRotation = ->
-  $('#streaming').attr('class', "img-responsive img-thumbnail x#{if flipped then '-flipped' else ''}#{if mirrored then '-mirrored' else ''}-rotated-#{angle}")
-  return
+    # refresh current rotation
+    refreshRotation = ->
+      $('#streaming').attr('class', "img-responsive img-thumbnail x#{if flipped then '-flipped' else ''}#{if mirrored then '-mirrored' else ''}-rotated-#{angle}")
+      return
 
-# initialize
-initialize = ->
-  # set initial orientation
-  refreshRotation()
+    # initialize
+    initialize = ->
+      # set initial orientation
+      refreshRotation()
 
-  # set rotation angle angle and toggle rotate class
-  $('#rotate').click ->
-    angle = (angle + 90) % 360
-    refreshRotation()
+      # set rotation angle angle and toggle rotate class
+      $('#rotate').click ->
+        angle = (angle + 90) % 360
+        refreshRotation()
 
-  # toggle mirror class component
-  $('#mirror').click ->
-    mirrored = !mirrored
-    refreshRotation()
+      # toggle mirror class component
+      $('#mirror').click ->
+        mirrored = !mirrored
+        refreshRotation()
 
-  # toggle flip class component
-  $('#flip').click ->
-    flipped = !flipped
-    refreshRotation()
+      # toggle flip class component
+      $('#flip').click ->
+        flipped = !flipped
+        refreshRotation()
 
-  return
+      return
 
-$ ->
-  $.ajax(
-    url: '/config.json'
-    type: 'GET'
-    async: true
-    success: (msg) ->
-      angle = msg.angle
-      flipped = msg.flipped
-      mirrored = msg.mirrored
-      initialize()
-    error: ->
-      initialize()
-  )
+    $ ->
+      $.ajax(
+        url: '/config.json'
+        type: 'GET'
+        async: true
+        success: (msg) ->
+          angle = msg.angle
+          flipped = msg.flipped
+          mirrored = msg.mirrored
+          initialize()
+        error: ->
+          initialize()
+      )
 
-  return
-
+      return
   </script>
+
+  <!-- MJPG-STREAMER -->
+  <script type="text/javascript">
+   $(function () {
+    // Position Variables
+    var x   = 0;
+    var y   = 0;
+    var z   = 0;
+
+    // Acceleration
+    var ax   = 0;
+    var ay   = 0;
+    
+    var delay  = 200;
+    var vMultiplier = 0.01;   
+
+    var content = $('#content');
+    var status  = $('#status');
+       
+      var connection = new WebSocket('ws://'+document.domain+':1337');
+
+      connection.onopen = function () {
+                           status.text('You are connected to ThanboPi Server.' +
+     'Move your device and Have Fun!!');
+      };
+
+      connection.onerror = function (error) {
+        content.html($('<p>', { text: 'Sorry, but there\'s some problem with your '
+        + 'connection or the server is   down.' } ));  
+      };
+
+
+      if (window.DeviceMotionEvent!=undefined) {
+
+    window.ondevicemotion = function(event) {
+     ax = Math.round((event.accelerationIncludingGravity.x * 1));
+     ay = Math.round(Math.abs(event.accelerationIncludingGravity.y * 1));
+    }
+   
+    setInterval(function() {
+     connection.send('x' + ax);
+     /*
+       Going to use this data to control 
+       the second servo motor
+
+        connection.send('y' + ay); 
+     */
+
+    }, delay);   
+   }
+   
+  });
+ </script>
 </html>

@@ -1,0 +1,11 @@
+{
+  "name": "Node.js-Example",
+  "description": "Control servo from phone gyroscope",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "express": "*",
+    "websocket": "*",
+    "pi-blaster.js":"*"
+  }
+}
